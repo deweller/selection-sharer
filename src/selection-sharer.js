@@ -21,13 +21,12 @@
 
     this.sel = null;
     this.textSelection='';
-    this.htmlSelection='';
 
     this.appId = $('meta[property="fb:app_id"]').attr("content") || $('meta[property="fb:app_id"]').attr("value");
     this.url2share = $('meta[property="og:url"]').attr("content") || $('meta[property="og:url"]').attr("value") || window.location.href;
 
     this.getSelectionText = function(sel) {
-        var html = "", text = "";
+        var text = "";
         sel = sel || window.getSelection();
         if (sel.rangeCount) {
             var container = document.createElement("div");
@@ -35,10 +34,8 @@
                 container.appendChild(sel.getRangeAt(i).cloneContents());
             }
             text = container.textContent;
-            html = container.innerHTML;
         }
         self.textSelection = text;
-        self.htmlSelection = html || text;
         return text;
     };
 
@@ -214,12 +211,11 @@
     this.shareTwitter = function(e) {
       e.preventDefault();
 
-      var text = "“"+self.smart_truncate(self.textSelection.trim(), 114)+"”";
-      var url = 'http://twitter.com/intent/tweet?text='+encodeURIComponent(text)+'&related='+self.relatedTwitterAccounts+'&url='+encodeURIComponent(window.location.href);
+      var textToTruncate = self.textSelection.trim()
+      var suffix = " via @stratandbiz"+window.twitter_hashtags_suffix;
 
-      // We only show the via @twitter:site if we have enough room
-      if(self.viaTwitterAccount && text.length < (120-6-self.viaTwitterAccount.length))
-        url += '&via='+self.viaTwitterAccount;
+      var text = "“"+self.smart_truncate(textToTruncate, 114 - suffix.length)+"”" + suffix;
+      var url = 'http://twitter.com/intent/tweet?text='+encodeURIComponent(text)+'&related='+self.relatedTwitterAccounts+'&url='+encodeURIComponent(self.url2share);
 
       var w = 640, h=440;
       var left = (screen.width/2)-(w/2);
@@ -231,7 +227,7 @@
 
     this.shareFacebook = function(e) {
       e.preventDefault();
-      var text = self.htmlSelection.replace(/<p[^>]*>/ig,'\n').replace(/<\/p>|  /ig,'').trim();
+      var text = self.textSelection.trim();
 
       var url = 'https://www.facebook.com/dialog/feed?' +
                 'app_id='+self.appId +
@@ -247,8 +243,27 @@
       window.open(url, "share_facebook", 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
     };
 
+    this.shareLinkedin = function(e) {
+      e.preventDefault();
+      var text = self.textSelection.trim();
+
+      articleTitle = $('meta[property=og\\:title]').attr('content');
+      var url = 'https://www.linkedin.com/shareArticle?' +
+                'mini=true' +
+                '&url='+encodeURIComponent(self.url2share)+
+                '&title='+encodeURIComponent(articleTitle)+
+                '&summary='+encodeURIComponent(text);
+                
+      var w = 640, h=440;
+      var left = (screen.width/2)-(w/2);
+      var top = (screen.height/2)-(h/2)-100;
+
+      window.open(url, "share_linkedin", 'toolbar=no, location=no, directories=no, status=no, menubar=no, scrollbars=no, resizable=no, copyhistory=no, width='+w+', height='+h+', top='+top+', left='+left);
+    };
+
     this.shareEmail = function(e) {
-      var text = self.textSelection.replace(/<p[^>]*>/ig,'\n').replace(/<\/p>|  /ig,'').trim();
+      // var text = self.textSelection.replace(/<p[^>]*>/ig,'\n').replace(/<\/p>|  /ig,'').trim();
+      var text = self.textSelection.trim()
       var email = {};
       email.subject = encodeURIComponent("Quote from "+document.title);
       email.body = encodeURIComponent("“"+text+"”")+"%0D%0A%0D%0AFrom: "+document.title+"%0D%0A"+window.location.href;
@@ -263,6 +278,7 @@
                        + '    <ul>'
                        + '      <li><a class="action tweet" href="" title="Share this selection on Twitter" target="_blank">Tweet</a></li>'
                        + '      <li><a class="action facebook" href="" title="Share this selection on Facebook" target="_blank">Facebook</a></li>'
+                       + '      <li><a class="action linkedin" href="" title="Share this selection on LinkedIn" target="_blank">LinkedIn</a></li>'
                        + '      <li><a class="action email" href="" title="Share this selection by email" target="_blank"><svg width="20" height="20"><path stroke="%23FFF" stroke-width="6" d="m16,25h82v60H16zl37,37q4,3 8,0l37-37M16,85l30-30m22,0 30,30"/></svg></a></li>'
                        + '    </ul>'
                        + '  </div>'
@@ -275,6 +291,7 @@
                        + '    <ul>'
                        + '      <li><a class="action tweet" href="" title="Share this selection on Twitter" target="_blank">Tweet</a></li>'
                        + '      <li><a class="action facebook" href="" title="Share this selection on Facebook" target="_blank">Facebook</a></li>'
+                       + '      <li><a class="action linkedin" href="" title="Share this selection on LinkedIn" target="_blank">LinkedIn</a></li>'
                        + '      <li><a class="action email" href="" title="Share this selection by email" target="_blank"><svg width="20" height="20"><path stroke="%23FFF" stroke-width="6" d="m16,25h82v60H16zl37,37q4,3 8,0l37-37M16,85l30-30m22,0 30,30"/></svg></a></li>'
                        + '    </ul>'
                        + '  </div>'
@@ -282,6 +299,7 @@
       self.$popover = $(popoverHTML);
       self.$popover.find('a.tweet').click(self.shareTwitter);
       self.$popover.find('a.facebook').click(self.shareFacebook);
+      self.$popover.find('a.linkedin').click(self.shareLinkedin);
       self.$popover.find('a.email').click(self.shareEmail);
 
       $('body').append(self.$popover);
@@ -289,6 +307,7 @@
       self.$popunder = $(popunderHTML);
       self.$popunder.find('a.tweet').click(self.shareTwitter);
       self.$popunder.find('a.facebook').click(self.shareFacebook);
+      self.$popunder.find('a.linkedin').click(self.shareLinkedin);
       self.$popunder.find('a.email').click(self.shareEmail);
       $('body').append(self.$popunder);
 
